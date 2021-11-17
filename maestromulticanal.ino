@@ -2,7 +2,7 @@
 
 
 //configuracion 
-    const int slavesQty = 1; //define el numero de esclavos a utilizar 
+    const int slavesQty = 1; //define el numero de esclavos a utilizar
     
     int voltageMaxSet[slavesQty] = { //tope maximo de voltaje para el seteo de la resistencia
       19653
@@ -10,17 +10,28 @@
     unsigned int voltageMinSet[slavesQty] = { //tope minimo para el seteo de la resistencia
       6551
     };
+    int voltageMaxReset[slavesQty] = { //tope maximo de voltaje para el reseteo de la resistencia
+      19653
+    };
+    unsigned int voltageMinReset[slavesQty] = { //tope minimo para el reseteo de la resistencia
+      6551
+    };
     unsigned int measureVoltage[slavesQty] = { //voltaje que se aplica para medir la resistencia 
       1310
     };
-    unsigned int electricCurrents[slavesQty];
-    
+    unsigned int electricCurrents[slavesQty] = { //corriente objetivo que se desea alcanzar al aplicar voltaje a la resistencia
+      0.003
+    };
+    float previousStep[slavesQty] = {
+      0.00
+    };
     unsigned int delta[slavesQty] = {
       1
     };
     int executeFlag[slavesQty] = { //una bandera por cada esclavo 
       0
     };
+    float errorMargin = 0; 
     
     
     
@@ -39,6 +50,27 @@
     int _arduinoClk_ = 7; 
     
 //METODOS : 
+    //iteracion para encontrar corriente deseada
+    int findDesiredCurrentByStep(int measuredVoltage, int slaveID){
+      //esta funcion decide si es necesario seguir aumentando o disminuyendo el voltaje para obtener la corriente deseada 
+      //regresa tres posibles valores: 1 = ya lo encontro, 2 = si tiene que cambiar de signo la delta, 3 si puede seguir en 
+      //la misma direccion
+      int slaveStatus = 3; 
+      float measuredCurrent = (2.5 - (float)measuredVoltage*5.0/1023.0 )/10000.0;  //obtenemos la corriente actual
+      if (abs(measuredCurrent - electricCurrents[slaveID]) < errorMargin ){
+        slaveStatus = 1; //ya lo encontro
+        return slaveStatus; 
+      }
+      float currentStep = electricCurrents[slaveID]-measuredCurrent;  
+      if((currentStep * previousStep[slaveID]) < 0){
+        slaveStatus = 2; 
+        return slaveStatus; 
+      }
+      return slaveStatus;
+    } 
+      
+
+
     //enviar por SPI
     void SPItransfer(int slaveNumber, unsigned int data, int state){
       //input: (esclavo que recibe la informacion, informacion)
